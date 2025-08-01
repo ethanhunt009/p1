@@ -1,0 +1,13 @@
+{
+  "nanthagopal": {
+    "master_did": "did:key:6MkedWGj5XGcap1yRHQg8uoXEVyCRnrgW5fssDR26agojuv",
+    "encrypted_master_signing_key_hex": "9c79f4dca0972b5da91bcf992b903917020e3041dbf3d15c3e90c165b9f39694cb99c34e8f2d8929ff3c7e199c598f5f7a3e47f299c6fe3285f0e74d5a3c0c12e56433777acedaa71cf08e80",
+    "encrypted_personal_data_hex": "19f64ad5ac5f4dbb22743f97ae59cf86c174a0ad0110cf4002dc7e1d0cd5bdb712073f8842a45d1d7d74684e931f8d0942321850c0a35a8aa235594ba57e8ad3c3083605f2b068de48e66bac743bf98b3805fad42c18b38498c4e303fb5c5d7ae8012c07a1a17795fb87e7934c621c54d050898f2eb00cdc2531",
+    "relationships": {
+      "HDFC_BANK": {
+        "pairwise_did": "did:key:6Mkgihrekwd3Yap9USARbM9z9KSN69MGWK49sqcuT6MZch4",
+        "encrypted_pairwise_signing_key_hex": "24e5f77c622c6161824c6d177b22fd089f3214c9df2e792e3bb5225e25a64ad8f1b69e62061543d5e0cbc0419e88d2e4faa9899e3966c21c3717f72474531ae0a3b4ecc20c841bf32b99594e"
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "tron": {
+    "user_did": "did:key:6MkoYUpjbp2TTqxpgvfEHmLzBEwszFTTuk7GUUkiaQfuepW",
+    "encrypted_signing_key_hex": "a42c9316d4051ca00945188385636a4ee313ab5479a0e7d5b1f98e613cefb6bc8b9a517bcb2c8e70ae2b7e436c4611ef608f9aaafd798d225c6ca2064952d0f317f56873253098bcb925cb04",
+    "encrypted_personal_data_hex": "a6b7113a97b422b3c83ae3962a0c6a0ca82ae3dcaeed044c8ed4eb15446246074a0673ad63b782eb1e6c36e623a617d6e078870dde761162f09354c287a19bec16c9df8f5398c6858e4e94bc34e732d7ffc49a1e8e348469540b571a17aee65f07a643da8ac1e87c7138cb5f00791a2ab961e860f5d491d772293998"
+  },
+  "nanthagopal": {
+    "user_did": "did:key:6MkfM6cH7fgXACKwj19atvzBwAKq3TpY8cNyhujS3cHsUvH",
+    "encrypted_signing_key_hex": "1494374c15d3417ca798d9a6dc3783a9efd38b139686559a5d1d8afceb3c1b91f94b13616b5d657db7be8a9e20811b2abb42b76310fb6d6d7d53b470b359ae85e526e2cc982c2113a43fdff9",
+    "encrypted_personal_data_hex": "98216b143441edd40d4145a65a4faedc7ef2ed7879cc5db93485e8569d273a4ae9f1532fbc52544a6c750840292d6b1e94b41fd67b8c90ca327af860763fc189a25fb220931b309c9e110e548f63fbb78e40b40daa3e4cf0b308d9de654c73e1d4adf30ef21d3d040877c76b6cddcdbbeb4af1d13475be"
+  }
+}

@@ -65,8 +65,8 @@ def sign_credential(credential_subject: dict, user_did: str, signing_key: Signin
         "credentialSubject": credential_subject
     }
     
-    message_to_sign = json.dumps(vc, sort_keys=True, separators=(',', ':')).encode('utf-8')
-    signed_data = signing_key.sign(message_to_sign)
+    message_to_sign = json.dumps(vc, sort_keys=True, separators=(',', ':')).encode('utf-8') 
+    signed_data = signing_key.sign(message_to_sign)                                        #VC Hash generated here <-------
     
     vc['proof'] = {
         "type": "Ed25519Signature2018",

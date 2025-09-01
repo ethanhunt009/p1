@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from nacl.signing import SigningKey, VerifyKey
 from nacl.encoding import Base64Encoder
-
+from datetime import datetime, timezone, timedelta  # Added timezone
 import config
 import crypto_utils
 
@@ -49,6 +49,11 @@ def setup_default_banks():
     print("--- Default Bank Setup Complete ---")
 
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup_event():
+    """Run setup when the application starts."""
+    setup_default_banks()
 
 @app.post("/submit_kyc")
 def submit_kyc(payload: KycSubmitPayload):
@@ -131,7 +136,6 @@ def submit_kyc(payload: KycSubmitPayload):
         print(f"!!! An unexpected error occurred: {e} !!!")
         raise HTTPException(status_code=500, detail="Internal server error during verification.")
 
-
 def run_bank_server(bank_id: str):
     if bank_id not in config.DEFAULT_BANKS:
         print(f"Error: Bank '{bank_id}' is not defined in config.py.")
@@ -144,8 +148,7 @@ def run_bank_server(bank_id: str):
     uvicorn.run(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
-    setup_default_banks()
-    
+    # Setup will now happen automatically when the app starts
     if len(sys.argv) > 1:
         bank_to_run = sys.argv[1]
         run_bank_server(bank_to_run)

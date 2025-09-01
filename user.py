@@ -125,6 +125,27 @@ def logout():
     CURRENT_USER_SESSION = {}
     print("Logout successful.")
 
+def show_dids():
+    """Displays the user's master DID and all pairwise DIDs for banks."""
+    if not CURRENT_USER_SESSION:
+        print("You must be logged in to view your DIDs.")
+        return
+        
+    username = CURRENT_USER_SESSION['username']
+    all_users = load_all_user_data()
+    user_data = all_users[username]
+    
+    print("\n--- Your Decentralized Identifiers (DIDs) ---")
+    print(f"Master DID: {user_data['master_did']}")
+    
+    if user_data['relationships']:
+        print("\nPairwise DIDs for Banks:")
+        for bank_id, relationship in user_data['relationships'].items():
+            print(f"  {bank_id}: {relationship['pairwise_did']}")
+    else:
+        print("\nYou haven't created any pairwise DIDs for banks yet.")
+    print("---" + "-" * 40)
+
 def create_or_get_pairwise_did_for_bank(bank_id):
     """Creates a new, unique DID for a bank relationship if one doesn't exist."""
     username = CURRENT_USER_SESSION['username']
@@ -174,9 +195,11 @@ def verify_kyc():
     password = CURRENT_USER_SESSION['password']
     
     print(f"Available banks: {list(config.DEFAULT_BANKS.keys())}")
-    bank_id = input("Enter the ID of the bank to verify with: ").upper()
+    bank_id = input("Enter the ID of the bank to verify with: ").strip().upper()
+    
+    # Validate bank ID
     if bank_id not in config.DEFAULT_BANKS:
-        print("Invalid Bank ID.")
+        print(f"Invalid Bank ID. Please choose from: {list(config.DEFAULT_BANKS.keys())}")
         return
 
     print("\nStarting KYC process...")
@@ -221,11 +244,25 @@ def verify_kyc():
         bank_url = f"http://localhost:{bank_port}"
         
         print(f"--> Presenting credential to {bank_id}...")
-        response = requests.post(f"{bank_url}/submit_kyc", json={"verifiable_credential": verifiable_credential})
-        response.raise_for_status()
-
-        print(f"-> Bank Final Response: {response.json()['message']}")
-        print("\nKYC Process Completed Successfully!")
+        
+        try:
+            response = requests.post(f"{bank_url}/submit_kyc", json={"verifiable_credential": verifiable_credential}, timeout=10)
+            response.raise_for_status()
+            
+            print(f"-> Bank Final Response: {response.json()['message']}")
+            print("\nKYC Process Completed Successfully!")
+            
+        except requests.exceptions.ConnectionError:
+            print(f"\n!!! Could not connect to {bank_id} server at {bank_url}.")
+            print("!!! Please make sure the bank server is running.")
+            return
+        except requests.exceptions.Timeout:
+            print(f"\n!!! Connection to {bank_id} server timed out.")
+            print("!!! The bank server might be busy or not responding.")
+            return
+        except requests.exceptions.RequestException as e:
+            print(f"\n!!! Error communicating with {bank_id} server: {e}")
+            return
 
     except Exception as e:
         print(f"\nAn unexpected error occurred: {e}")
@@ -272,13 +309,14 @@ def main_menu():
         if CURRENT_USER_SESSION:
             print(f"Logged in as: {CURRENT_USER_SESSION['username']}")
             print("1. Verify KYC with a Bank")
-            print("2. Revoke a Credential")
-            print("3. Logout")
+            print("2. Show My DIDs")
+            print("3. Revoke a Credential")
+            print("4. Logout")
         else:
             print("1. Signup (New User)")
             print("2. Login")
         
-        print("4. Exit")
+        print("5. Exit")
         print("="*20)
         choice = input("Select option: ").strip()
 
@@ -286,10 +324,12 @@ def main_menu():
             if choice == '1':
                 verify_kyc()
             elif choice == '2':
-                revoke_credential()
+                show_dids()
             elif choice == '3':
-                logout()
+                revoke_credential()
             elif choice == '4':
+                logout()
+            elif choice == '5':
                 break
         else:
             if choice == '1':

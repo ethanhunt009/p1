@@ -7,6 +7,10 @@
       "HDFC_BANK": {
         "pairwise_did": "did:key:6Mkgihrekwd3Yap9USARbM9z9KSN69MGWK49sqcuT6MZch4",
         "encrypted_pairwise_signing_key_hex": "24e5f77c622c6161824c6d177b22fd089f3214c9df2e792e3bb5225e25a64ad8f1b69e62061543d5e0cbc0419e88d2e4faa9899e3966c21c3717f72474531ae0a3b4ecc20c841bf32b99594e"
+      },
+      "ICICI_BANK": {
+        "pairwise_did": "did:key:6MkhdrfL18XgJ6vuA6S64YHwwSe4jaGZi4Lx3z214a95vRT",
+        "encrypted_pairwise_signing_key_hex": "94ec7fe95792e0b668ee68a9b9da1f0e87d3a6104955e89aa9b4d6bdc4706614c35ff54675b08439fc2c4cd5eb49f82fe8b6fb6770fa656cf6934ac088a8cd346f98558cdfef95bb6a26fffa"
       }
     }
   }

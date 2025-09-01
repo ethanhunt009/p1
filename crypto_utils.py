@@ -1,12 +1,14 @@
 # crypto_utils.py
 # Shared cryptographic helper functions
-
+import uuid
 import os
 import json
 import base58
 from datetime import datetime, timezone
 from nacl.signing import SigningKey, VerifyKey
 from nacl.encoding import Base64Encoder
+from datetime import timedelta
+import config
 
 # --- Symmetric Encryption for local storage ---
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM

@@ -7,6 +7,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from nacl.signing import VerifyKey
 from nacl.encoding import Base64Encoder
+import uuid
+from datetime import timedelta
 
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -40,8 +42,71 @@ def setup_database():
             entity_type TEXT NOT NULL
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS revoked_credentials (
+            credential_id TEXT PRIMARY KEY,
+            revoked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     conn.close()
+
+class RevocationPayload(BaseModel):
+    credential_id: str
+    issuer_did: str
+    signature_hex: str
+
+@app.post("/revoke_credential")
+def revoke_credential(payload: RevocationPayload):
+    """Allows an issuer to revoke a credential."""
+    try:
+        # Verify the issuer's signature
+        conn = sqlite3.connect(config.CA_DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT public_key FROM entities WHERE id = ?", (payload.issuer_did,))
+        issuer_result = cursor.fetchone()
+        
+        if not issuer_result:
+            raise HTTPException(status_code=404, detail="Issuer not found.")
+            
+        issuer_public_key_b64 = issuer_result[0]
+        issuer_verify_key = VerifyKey(issuer_public_key_b64, encoder=Base64Encoder)
+        
+        message_to_verify = f"revoke:{payload.credential_id}"
+        is_signature_valid = crypto_utils.verify_message_signature(
+            message=message_to_verify,
+            signature_hex=payload.signature_hex,
+            verify_key=issuer_verify_key
+        )
+        
+        if not is_signature_valid:
+            raise HTTPException(status_code=403, detail="Invalid signature.")
+        
+        # Add to revocation list
+        cursor.execute("INSERT OR REPLACE INTO revoked_credentials (credential_id) VALUES (?)", 
+                       (payload.credential_id,))
+        conn.commit()
+        conn.close()
+        
+        return {"status": "success", "message": f"Credential {payload.credential_id} revoked."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.get("/credentials/status/{credential_id}")
+def check_credential_status(credential_id: str):
+    """Checks if a credential has been revoked."""
+    try:
+        conn = sqlite3.connect(config.CA_DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM revoked_credentials WHERE credential_id = ?", (credential_id,))
+        revoked = cursor.fetchone() is not None
+        conn.close()
+        
+        return {"revoked": revoked}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 def setup_ca_identity():
     """Creates the CA's own master key pair and self-signed certificate if they don't exist."""

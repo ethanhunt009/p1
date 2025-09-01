@@ -6,6 +6,10 @@ import uuid
 from getpass import getpass
 from nacl.signing import SigningKey
 from nacl.encoding import Base64Encoder
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 import config
 import crypto_utils
@@ -84,11 +88,26 @@ def login():
     try:
         # Verify password by trying to decrypt the master key
         encrypted_key = bytes.fromhex(user_data['encrypted_master_signing_key_hex'])
-        crypto_utils.decrypt_data(encrypted_key, password)
+        master_signing_key_bytes = crypto_utils.decrypt_data(encrypted_key, password)
+        
+        # Precompute and cache the derived key for this session
+        encrypted_personal_data_bytes = bytes.fromhex(user_data['encrypted_personal_data_hex'])
+        salt = encrypted_personal_data_bytes[:16]  # Extract salt from encrypted data
+        
+        # Derive key once and cache it
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=480000,
+            backend=default_backend()
+        )
+        derived_key = kdf.derive(password.encode())
         
         CURRENT_USER_SESSION = {
             "username": username,
-            "password": password,
+            "password": password,  # Still need password for other operations
+            "derived_key": derived_key,  # Cache the derived key for personal data
             "user_data": user_data
         }
         print(f"Login successful. Welcome, {username}!")
@@ -178,8 +197,14 @@ def verify_kyc():
         signing_key_bytes = crypto_utils.decrypt_data(encrypted_key_bytes, password)
         signing_key = SigningKey(signing_key_bytes)
         
+        # Use the cached derived key to decrypt personal data (optimization)
         encrypted_personal_data_bytes = bytes.fromhex(user_data['encrypted_personal_data_hex'])
-        personal_data_bytes = crypto_utils.decrypt_data(encrypted_personal_data_bytes, password)
+        salt = encrypted_personal_data_bytes[:16]
+        nonce = encrypted_personal_data_bytes[16:28]
+        ciphertext = encrypted_personal_data_bytes[28:]
+        
+        aesgcm = AESGCM(CURRENT_USER_SESSION['derived_key'])
+        personal_data_bytes = aesgcm.decrypt(nonce, ciphertext, None)
         personal_data = json.loads(personal_data_bytes)
 
         # 3. Create a Verifiable Credential issued by the PAIRWISE DID
@@ -205,6 +230,40 @@ def verify_kyc():
     except Exception as e:
         print(f"\nAn unexpected error occurred: {e}")
 
+def revoke_credential():
+    """Allows a user to revoke a credential they issued."""
+    if not CURRENT_USER_SESSION:
+        print("You must be logged in to revoke a credential.")
+        return
+        
+    credential_id = input("Enter the credential ID to revoke: ")
+    
+    try:
+        # Get the user's signing key
+        password = CURRENT_USER_SESSION['password']
+        user_data = CURRENT_USER_SESSION['user_data']
+        encrypted_key = bytes.fromhex(user_data['encrypted_master_signing_key_hex'])
+        signing_key_bytes = crypto_utils.decrypt_data(encrypted_key, password)
+        signing_key = SigningKey(signing_key_bytes)
+        
+        # Create revocation signature
+        message_to_sign = f"revoke:{credential_id}"
+        signature = crypto_utils.sign_message(message_to_sign, signing_key)
+        
+        # Send revocation request to CA
+        revocation_payload = {
+            "credential_id": credential_id,
+            "issuer_did": user_data['master_did'],
+            "signature_hex": signature
+        }
+        
+        response = requests.post(f"{config.CA_URL}/revoke_credential", json=revocation_payload)
+        response.raise_for_status()
+        
+        print(f"Credential {credential_id} revoked successfully.")
+    except Exception as e:
+        print(f"Error revoking credential: {e}")
+
 def main_menu():
     """Displays the main menu and handles user choices."""
     while True:
@@ -213,12 +272,13 @@ def main_menu():
         if CURRENT_USER_SESSION:
             print(f"Logged in as: {CURRENT_USER_SESSION['username']}")
             print("1. Verify KYC with a Bank")
-            print("2. Logout")
+            print("2. Revoke a Credential")
+            print("3. Logout")
         else:
             print("1. Signup (New User)")
             print("2. Login")
         
-        print("3. Exit")
+        print("4. Exit")
         print("="*20)
         choice = input("Select option: ").strip()
 
@@ -226,8 +286,10 @@ def main_menu():
             if choice == '1':
                 verify_kyc()
             elif choice == '2':
-                logout()
+                revoke_credential()
             elif choice == '3':
+                logout()
+            elif choice == '4':
                 break
         else:
             if choice == '1':

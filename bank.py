@@ -62,6 +62,29 @@ def submit_kyc(payload: KycSubmitPayload):
     print(f"\nReceived KYC Verifiable Credential from issuer: {user_did}")
     
     try:
+        # 1. Check if credential has expired
+        if "expirationDate" in vc:
+            expiration_date = datetime.fromisoformat(vc["expirationDate"].replace('Z', '+00:00'))
+            if expiration_date < datetime.now(timezone.utc):
+                raise HTTPException(status_code=400, detail="Credential has expired.")
+            print("--> Credential expiration check passed.")
+        else:
+            print("--> Warning: Credential has no expiration date.")
+        
+        # 2. Check revocation status if credential has an ID
+        if "id" in vc:
+            credential_id = vc["id"]
+            try:
+                status_response = requests.get(f"{config.CA_URL}/credentials/status/{credential_id}")
+                if status_response.status_code == 200 and status_response.json().get("revoked", False):
+                    raise HTTPException(status_code=400, detail="Credential has been revoked.")
+                print("--> Credential revocation check passed.")
+            except requests.exceptions.RequestException:
+                print("--> Warning: Could not check credential status (CA unreachable).")
+        else:
+            print("--> Warning: Credential has no ID, skipping revocation check.")
+        
+        # 3. Authenticate to CA to fetch public key
         print(f"--> Authenticating to CA to fetch public key for {user_did}...")
         
         bank_info = config.DEFAULT_BANKS[bank_id]
@@ -86,6 +109,7 @@ def submit_kyc(payload: KycSubmitPayload):
         user_public_key_b64 = response.json()['public_key']
         print("--> Public key fetched successfully after authentication.")
 
+        # 4. Verify credential signature
         print("--> Verifying credential signature...")
         is_valid = crypto_utils.verify_credential(vc.copy(), user_public_key_b64)
 
@@ -100,11 +124,13 @@ def submit_kyc(payload: KycSubmitPayload):
             raise HTTPException(status_code=400, detail="Invalid credential signature.")
             
     except requests.exceptions.RequestException as e:
-        print(f"!!! Error communicating with CA: {e.response.json() if e.response else e} !!!")
+        error_detail = e.response.json() if e.response else str(e)
+        print(f"!!! Error communicating with CA: {error_detail} !!!")
         raise HTTPException(status_code=500, detail="Error communicating with CA.")
     except Exception as e:
         print(f"!!! An unexpected error occurred: {e} !!!")
         raise HTTPException(status_code=500, detail="Internal server error during verification.")
+
 
 def run_bank_server(bank_id: str):
     if bank_id not in config.DEFAULT_BANKS:

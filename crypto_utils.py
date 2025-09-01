@@ -57,21 +57,33 @@ def get_did_from_key(verify_key: VerifyKey):
 
 def sign_credential(credential_subject: dict, user_did: str, signing_key: SigningKey):
     """Creates and signs a Verifiable Credential."""
+    # Generate a unique ID for this credential
+    credential_id = f"urn:uuid:{uuid.uuid4()}"
+    
     vc = {
         "@context": ["https://www.w3.org/2018/credentials/v1"],
+        "id": credential_id,
         "type": ["VerifiableCredential", "KYCCredential"],
         "issuer": user_did,
         "issuanceDate": datetime.now(timezone.utc).isoformat(),
-        "credentialSubject": credential_subject
+        "expirationDate": (datetime.now(timezone.utc) + timedelta(days=365)).isoformat(),  # 1 year validity
+        "credentialSubject": credential_subject,
+        "credentialStatus": {
+            "id": f"{config.CA_URL}/credentials/status/{credential_id}",
+            "type": "RevocationList2020Status",
+            "revocationListIndex": "0",
+            "revocationListCredential": f"{config.CA_URL}/credentials/status"
+        }
     }
     
-    message_to_sign = json.dumps(vc, sort_keys=True, separators=(',', ':')).encode('utf-8') 
-    signed_data = signing_key.sign(message_to_sign)                                        #VC Hash generated here <-------
+    message_to_sign = json.dumps(vc, sort_keys=True, separators=(',', ':')).encode('utf-8')
+    signed_data = signing_key.sign(message_to_sign)
     
     vc['proof'] = {
         "type": "Ed25519Signature2018",
         "verificationMethod": user_did,
-        "signatureValue": signed_data.signature.hex()
+        "signatureValue": signed_data.signature.hex(),
+        "created": datetime.now(timezone.utc).isoformat()
     }
     return vc
 
